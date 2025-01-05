@@ -14,6 +14,10 @@ app = func.FunctionApp()
 input_queue_name = "input"
 output_queue_name = "output"
 
+def get_weather():
+    # Example implementation of get_weather function
+    return "sunny"
+
 # Function to initialize the agent client and the tools Azure Functions that the agent can use
 def initialize_client():
     # Create a project client using the connection string from local.settings.json
@@ -98,6 +102,19 @@ def prompt(req: func.HttpRequest) -> func.HttpResponse:
         time.sleep(1)
         run = project_client.agents.get_run(thread_id=thread.id, run_id=run.id)
 
+        if run.status == "requires_action":
+            weather = get_weather()
+            project_client.agents.submit_tool_outputs_to_run(
+                thread_id=thread.id,
+                run_id=run.id,
+                tool_outputs=[
+                    {
+                        "tool_call_id": run.required_action.submit_tool_outputs.tool_calls[0].id,
+                        "output": weather
+                    }
+                ]
+            )
+
         if run.status not in ["queued", "in_progress", "requires_action"]:
             break
 
@@ -107,7 +124,7 @@ def prompt(req: func.HttpRequest) -> func.HttpResponse:
         logging.error(f"Run failed: {run.last_error}")
 
     # Get messages from the assistant thread
-    messages = project_client.agents.get_messages(thread_id=thread.id)
+    messages = project_client.agents.list_messages(thread_id=thread.id)
     logging.info(f"Messages: {messages}")
 
     # Get the last message from the assistant
