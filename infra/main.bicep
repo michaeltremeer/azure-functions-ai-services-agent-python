@@ -1,6 +1,5 @@
-
 @minLength(1)
-@maxLength(64)
+@maxLength(20)
 @description('Name of the the environment which is used to generate a short unique hash used in all resources.')
 param environmentName string
 
@@ -12,7 +11,6 @@ param environmentName string
     type: 'location'
   }
 })
-
 param location string
 
 @description('Skip the creation of the virtual network and private endpoint')
@@ -34,7 +32,7 @@ param appServicePlanName string = ''
 param logAnalyticsName string = ''
 
 @description('Name of the resource group')
-param resourceGroupName string = ''
+var resourceGroupName = resourceGroup().name
 
 @description('Name of the storage account')
 param storageAccountName string = ''
@@ -99,17 +97,21 @@ param aiSearchServiceResourceId string = ''
 @description('The Ai Storage Account full ARM Resource ID. This is an optional field, and if not provided, the resource will be created.')
 param aiStorageAccountResourceId string = ''
 
+@description('Tags to be applied to all resources')
+param tags object = { 'azd-env-name': environmentName }
+
 // Variables
 var abbrs = loadJsonContent('./abbreviations.json')
-var resourceToken = toLower(uniqueString(subscription().id, resourceGroup().id ,environmentName, location))
-var tags = { 'azd-env-name': environmentName }
+var resourceToken = take(toLower(uniqueString(subscription().id, resourceGroup().id, environmentName, location)), 5)
 var functionAppName = !empty(apiServiceName) ? apiServiceName : '${abbrs.webSitesFunctions}api-${resourceToken}'
 var deploymentStorageContainerName = 'app-package-${take(functionAppName, 32)}-${take(toLower(uniqueString(functionAppName, resourceToken)), 7)}'
 var name = toLower('${aiHubName}')
+var aiHubToken = '${name}${uniqueSuffix}'
 var projectName = toLower('${aiProjectName}')
+var aiProjectToken = '${projectName}${uniqueSuffix}'
 
 // Create a short, unique suffix, that will be unique to each resource group
-var uniqueSuffix = toLower(uniqueString(subscription().id, resourceGroup().id, location))
+var uniqueSuffix = resourceToken
 
 // User assigned managed identity to be used by the function app to reach storage and service bus
 module apiUserAssignedIdentity './core/identity/userAssignedIdentity.bicep' = {
@@ -117,7 +119,9 @@ module apiUserAssignedIdentity './core/identity/userAssignedIdentity.bicep' = {
   params: {
     location: location
     tags: tags
-    identityName: !empty(apiUserAssignedIdentityName) ? apiUserAssignedIdentityName : '${abbrs.managedIdentityUserAssignedIdentities}api-${resourceToken}'
+    identityName: !empty(apiUserAssignedIdentityName)
+      ? apiUserAssignedIdentityName
+      : '${abbrs.managedIdentityUserAssignedIdentities}api-${resourceToken}'
   }
 }
 
@@ -157,7 +161,6 @@ module api './app/api.bicep' = {
   }
 }
 
-
 // Backing storage for Azure functions backend processor
 module storage 'core/storage/storage-account.bicep' = {
   name: 'storage'
@@ -166,11 +169,13 @@ module storage 'core/storage/storage-account.bicep' = {
     location: location
     tags: tags
     containers: [
-      {name: deploymentStorageContainerName}
-     ]
-     networkAcls: skipVnet ? {} : {
-        defaultAction: 'Deny'
-      }
+      { name: deploymentStorageContainerName }
+    ]
+    networkAcls: skipVnet
+      ? {}
+      : {
+          defaultAction: 'Deny'
+        }
   }
 }
 
@@ -185,30 +190,30 @@ module aiDependencies './agent/standard-dependent-resources.bicep' = {
     aiSearchName: '${aiSearchName}${uniqueSuffix}'
     tags: tags
 
-     // Model deployment parameters
-     modelName: modelName
-     modelFormat: modelFormat
-     modelVersion: modelVersion
-     modelSkuName: modelSkuName
-     modelCapacity: modelCapacity  
-     modelLocation: location
+    // Model deployment parameters
+    modelName: modelName
+    modelFormat: modelFormat
+    modelVersion: modelVersion
+    modelSkuName: modelSkuName
+    modelCapacity: modelCapacity
+    modelLocation: location
 
-     aiServiceAccountResourceId: aiServiceAccountResourceId
-     aiSearchServiceResourceId: aiSearchServiceResourceId
-     aiStorageAccountResourceId: aiStorageAccountResourceId
-    }
+    aiServiceAccountResourceId: aiServiceAccountResourceId
+    aiSearchServiceResourceId: aiSearchServiceResourceId
+    aiStorageAccountResourceId: aiStorageAccountResourceId
+  }
 }
 
 module aiHub './agent/standard-ai-hub.bicep' = {
   name: '${name}${uniqueSuffix}deployment'
   params: {
     // workspace organization
-    aiHubName: '${name}${uniqueSuffix}'
+    aiHubName: aiHubToken
     aiHubFriendlyName: aiHubFriendlyName
     aiHubDescription: aiHubDescription
     location: location
     tags: tags
-    capabilityHostName: '${name}${uniqueSuffix}${capabilityHostName}'
+    capabilityHostName: '${aiHubToken}${capabilityHostName}'
 
     aiSearchName: aiDependencies.outputs.aiSearchName
     aiSearchId: aiDependencies.outputs.aisearchID
@@ -216,23 +221,22 @@ module aiHub './agent/standard-ai-hub.bicep' = {
     aiServicesName: aiDependencies.outputs.aiServicesName
     aiServicesId: aiDependencies.outputs.aiservicesID
     aiServicesTarget: aiDependencies.outputs.aiservicesTarget
-    
+
     keyVaultId: aiDependencies.outputs.keyvaultId
     storageAccountId: aiDependencies.outputs.storageId
   }
 }
 
-
 module aiProject './agent/standard-ai-project.bicep' = {
   name: '${projectName}${uniqueSuffix}deployment'
   params: {
     // workspace organization
-    aiProjectName: '${projectName}${uniqueSuffix}'
+    aiProjectName: aiProjectToken
     aiProjectFriendlyName: aiProjectFriendlyName
     aiProjectDescription: aiProjectDescription
     location: location
     tags: tags
-    
+
     // dependent resources
     capabilityHostName: '${projectName}${uniqueSuffix}${capabilityHostName}'
 
@@ -260,7 +264,7 @@ module aiSearchRoleAssignments './agent/ai-search-role-assignments.bicep' = {
   }
 }
 
-var storageRoleDefinitionId  = 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b' // Storage Blob Data Owner role
+var storageRoleDefinitionId = 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b' // Storage Blob Data Owner role
 
 // Allow access from api to storage account using a managed identity
 module storageRoleAssignmentApi 'app/storage-Access.bicep' = {
@@ -273,7 +277,7 @@ module storageRoleAssignmentApi 'app/storage-Access.bicep' = {
   }
 }
 
-var storageQueueDataContributorRoleDefinitionId  = '974c5e8b-45b9-4653-ba55-5f855dd0fb88' // Storage Queue Data Contributor
+var storageQueueDataContributorRoleDefinitionId = '974c5e8b-45b9-4653-ba55-5f855dd0fb88' // Storage Queue Data Contributor
 
 module storageQueueDataContributorRoleAssignmentprocessor 'app/storage-Access.bicep' = {
   name: 'storageQueueDataContributorRoleAssignmentprocessor'
@@ -306,7 +310,7 @@ module storageQueueDataContributorRoleAssignmentUserIdentityprocessor 'app/stora
   }
 }
 
-var storageTableDataContributorRoleDefinitionId  = '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3' // Storage Table Data Contributor
+var storageTableDataContributorRoleDefinitionId = '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3' // Storage Table Data Contributor
 
 module storageTableDataContributorRoleAssignmentprocessor 'app/storage-Access.bicep' = {
   name: 'storageTableDataContributorRoleAssignmentprocessor'
@@ -319,7 +323,7 @@ module storageTableDataContributorRoleAssignmentprocessor 'app/storage-Access.bi
 }
 
 // Virtual Network & private endpoint to blob storage
-module serviceVirtualNetwork 'app/vnet.bicep' =  if (!skipVnet) {
+module serviceVirtualNetwork 'app/vnet.bicep' = if (!skipVnet) {
   name: 'serviceVirtualNetwork'
   params: {
     location: location
@@ -345,9 +349,13 @@ module monitoring './core/monitor/monitoring.bicep' = {
   params: {
     location: location
     tags: tags
-    logAnalyticsName: !empty(logAnalyticsName) ? logAnalyticsName : '${abbrs.operationalInsightsWorkspaces}${resourceToken}'
-    applicationInsightsName: !empty(applicationInsightsName) ? applicationInsightsName : '${abbrs.insightsComponents}${resourceToken}'
-    disableLocalAuth: disableLocalAuth  
+    logAnalyticsName: !empty(logAnalyticsName)
+      ? logAnalyticsName
+      : '${abbrs.operationalInsightsWorkspaces}${resourceToken}'
+    applicationInsightsName: !empty(applicationInsightsName)
+      ? applicationInsightsName
+      : '${abbrs.insightsComponents}${resourceToken}'
+    disableLocalAuth: disableLocalAuth
   }
 }
 
@@ -366,7 +374,11 @@ module appInsightsRoleAssignmentApi './core/monitor/appinsights-access.bicep' = 
 var AzureAIAdministratorRoleDefinitionId = 'b78c5d69-af96-48a3-bf8d-a8b4d589de94' // Azure AI Administrator role ID
 // Enable access to AI Project from the Azure Function user assigned identity
 resource AIProjectRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(AzureAIAdministratorRoleDefinitionId, aiProjectName, resourceId('Microsoft.MachineLearningServices/workspaces', aiProjectName))
+  name: guid(
+    AzureAIAdministratorRoleDefinitionId,
+    aiProjectName,
+    resourceId('Microsoft.MachineLearningServices/workspaces', aiProjectName)
+  )
   properties: {
     roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', AzureAIAdministratorRoleDefinitionId)
     principalId: apiUserAssignedIdentity.outputs.identityPrincipalId
@@ -382,5 +394,8 @@ output SERVICE_API_NAME string = api.outputs.SERVICE_API_NAME
 output SERVICE_API_URI string = api.outputs.SERVICE_API_URI
 output AZURE_FUNCTION_APP_NAME string = api.outputs.SERVICE_API_NAME
 output RESOURCE_GROUP string = resourceGroupName
+output AI_HUB_NAME string = aiHubToken
+output AI_PROJECT_NAME string = aiProjectToken
+output PROJECT_ENDPOINT string = 'https://${aiHubToken}.services.ai.azure.com/api/projects/${aiProjectToken}'
 output PROJECT_CONNECTION_STRING string = aiProject.outputs.projectConnectionString
 output STORAGE_CONNECTION__queueServiceUri string = 'https://${storage.outputs.name}.queue.${environment().suffixes.storage}'
