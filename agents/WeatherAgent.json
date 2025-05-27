@@ -1,0 +1,46 @@
+{
+  "name": "WeatherAgent",
+  "description": "Agent for getting weather information",
+  "model": "gpt-4o-mini",
+  "instructions": "You are an assistant whose task is to get weather information for a given location. You can ask interactively clarifying question and produce a nice weather information for the location.",
+  "headers": {
+    "x-ms-enable-preview": "true"
+  },
+  "tools": [
+    {
+      "type": "azure_function",
+      "azure_function": {
+        "function": {
+          "name": "GetWeather",
+          "description": "Get the weather in a location.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": {
+                "type": "string",
+                "description": "The location to look up."
+              }
+            },
+            "required": [
+              "location"
+            ]
+          }
+        },
+        "input_binding": {
+          "type": "storage_queue",
+          "storage_queue": {
+            "queue_service_uri": "$STORAGE_CONNECTION__queueServiceUri",
+            "queue_name": "input"
+          }
+        },
+        "output_binding": {
+          "type": "storage_queue",
+          "storage_queue": {
+            "queue_service_uri": "$STORAGE_CONNECTION__queueServiceUri",
+            "queue_name": "output"
+          }
+        }
+      }
+    }
+  ]
+}
