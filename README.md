@@ -16,10 +16,27 @@ languages:
 ---
 -->
 
+# Setup
+
+This repo fork now uses `uv` for python package and environment maangement. This uses the pyproject.toml and uv.lock files to synchronize dependencies and configuration. To get started with uv:
+
+* [Install uv](https://docs.astral.sh/uv/getting-started/installation/) to your local system
+
+* Create a venv based on the `uv.lock` file: `uv venv`
+
+* Create or remove packages from the environment: `uv add requests` or `uv remove requests`. Add the `--dev` flag to add packages for local dev but not for deployment.
+
+* Run scripts within this repo using the virtual environment (without needing to explicitly activate it): `uv run path/to/script`
+
+* Activate the environment in the terminal: `source .venv/bin/activate` or `.venv\Scripts\activate`
+
+# Original Readme
+
 # Azure Functions
+
 ## Using Azure Functions to enable function calling from Azure AI Agent service
 
-This sample highlights how to use the [Azure AI Agent service](https://learn.microsoft.com/en-us/azure/ai-studio/how-to/develop/sdk-overview?tabs=sync&pivots=programming-language-python#azure-ai-agent-service) function calling where function calls are placed on a storage queue by the Agent service to be processed by an Azure Function listening to that queue. 
+This sample highlights how to use the [Azure AI Agent service](https://learn.microsoft.com/en-us/azure/ai-studio/how-to/develop/sdk-overview?tabs=sync&pivots=programming-language-python#azure-ai-agent-service) function calling where function calls are placed on a storage queue by the Agent service to be processed by an Azure Function listening to that queue.
 
 You can learn more about Azure functions in the [Official documentation](https://learn.microsoft.com/en-us/azure/azure-functions)
 
@@ -40,20 +57,27 @@ Once you have your Azure subscription, run the following in a new terminal windo
 ```bash
 azd init --template https://github.com/Azure-Samples/azure-functions-ai-services-agent-python
 ```
+
 Mac/Linux:
+
 ```bash
 chmod +x ./infra/scripts/*.sh 
 ```
+
 Windows:
+
 ```Powershell
 set-executionpolicy remotesigned
 ```
+
 Run the follow command to provision resources in Azure
+
 ```bash
 azd provision
 ```
 
 ### Create local.settings.json (Should be in the same folder as host.json. Automatically created if you ran azd provision)
+
 ```json
 {
   "IsEncrypted": false,
@@ -73,7 +97,6 @@ azd provision
 1. In the command palette (F1), type `Azurite: Start`, which enables debugging with local storage for Azure Functions runtime.
 1. Press **Run/Debug (F5)** to run in the debugger. Select **Debug anyway** if prompted about local emulator not running.
 1. Send POST `prompt` endpoints respectively using your HTTP test tool. If you have the [RestClient](https://marketplace.visualstudio.com/items?itemName=humao.rest-client) extension installed, you can execute requests directly from the [`test.http`](./app/test.http) project file.
-
 
 ## Deploy to Azure
 
