@@ -204,47 +204,58 @@ module aiDependencies './agent/standard-dependent-resources.bicep' = {
   }
 }
 
-module aiHub './agent/standard-ai-hub.bicep' = {
-  name: '${name}${uniqueSuffix}deployment'
-  params: {
-    // workspace organization
-    aiHubName: aiHubToken
-    aiHubFriendlyName: aiHubFriendlyName
-    aiHubDescription: aiHubDescription
-    location: location
-    tags: tags
-    capabilityHostName: '${aiHubToken}${capabilityHostName}'
-
-    aiSearchName: aiDependencies.outputs.aiSearchName
-    aiSearchId: aiDependencies.outputs.aisearchID
-
-    aiServicesName: aiDependencies.outputs.aiServicesName
-    aiServicesId: aiDependencies.outputs.aiservicesID
-    aiServicesTarget: aiDependencies.outputs.aiservicesTarget
-
-    keyVaultId: aiDependencies.outputs.keyvaultId
-    storageAccountId: aiDependencies.outputs.storageId
-  }
-}
-
-module aiProject './agent/standard-ai-project.bicep' = {
+module aiProject './agent/ai-foundry-project.bicep' = {
   name: '${projectName}${uniqueSuffix}deployment'
   params: {
     // workspace organization
+    aiFoundryName: aiDependencies.outputs.aiServicesName
     aiProjectName: aiProjectToken
-    aiProjectFriendlyName: aiProjectFriendlyName
-    aiProjectDescription: aiProjectDescription
     location: location
     tags: tags
-
-    // dependent resources
-    capabilityHostName: '${projectName}${uniqueSuffix}${capabilityHostName}'
-
-    aiHubId: aiHub.outputs.aiHubID
-    acsConnectionName: aiHub.outputs.acsConnectionName
-    aoaiConnectionName: aiHub.outputs.aoaiConnectionName
   }
 }
+
+// module aiHub './agent/standard-ai-hub.bicep' = {
+//   name: '${name}${uniqueSuffix}deployment'
+//   params: {
+//     // workspace organization
+//     aiHubName: aiHubToken
+//     aiHubFriendlyName: aiHubFriendlyName
+//     aiHubDescription: aiHubDescription
+//     location: location
+//     tags: tags
+//     capabilityHostName: '${aiHubToken}${capabilityHostName}'
+
+//     aiSearchName: aiDependencies.outputs.aiSearchName
+//     aiSearchId: aiDependencies.outputs.aisearchID
+
+//     aiServicesName: aiDependencies.outputs.aiServicesName
+//     aiServicesId: aiDependencies.outputs.aiservicesID
+//     aiServicesTarget: aiDependencies.outputs.aiservicesTarget
+
+//     keyVaultId: aiDependencies.outputs.keyvaultId
+//     storageAccountId: aiDependencies.outputs.storageId
+//   }
+// }
+
+// module aiProject './agent/standard-ai-project.bicep' = {
+//   name: '${projectName}${uniqueSuffix}deployment'
+//   params: {
+//     // workspace organization
+//     aiProjectName: aiProjectToken
+//     aiProjectFriendlyName: aiProjectFriendlyName
+//     aiProjectDescription: aiProjectDescription
+//     location: location
+//     tags: tags
+
+//     // dependent resources
+//     capabilityHostName: '${projectName}${uniqueSuffix}${capabilityHostName}'
+
+//     aiHubId: aiHub.outputs.aiHubID
+//     acsConnectionName: aiHub.outputs.acsConnectionName
+//     aoaiConnectionName: aiHub.outputs.aoaiConnectionName
+//   }
+// }
 
 module aiServiceRoleAssignments './agent/ai-service-role-assignments.bicep' = {
   name: 'aiserviceroleassignments${projectName}${uniqueSuffix}deployment'
@@ -371,13 +382,13 @@ module appInsightsRoleAssignmentApi './core/monitor/appinsights-access.bicep' = 
   }
 }
 
-var AzureAIAdministratorRoleDefinitionId = 'b78c5d69-af96-48a3-bf8d-a8b4d589de94' // Azure AI Administrator role ID
+var AzureAIAdministratorRoleDefinitionId = 'e47c6f54-e4a2-4754-9501-8e0985b135e1' // Azure AI Administrator role ID
 // Enable access to AI Project from the Azure Function user assigned identity
 resource AIProjectRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(
     AzureAIAdministratorRoleDefinitionId,
     aiProjectName,
-    resourceId('Microsoft.MachineLearningServices/workspaces', aiProjectName)
+    resourceId('Microsoft.CognitiveServices/accounts', aiProjectName)
   )
   properties: {
     roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', AzureAIAdministratorRoleDefinitionId)

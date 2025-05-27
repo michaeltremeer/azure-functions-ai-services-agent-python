@@ -19,31 +19,31 @@ param aiSearchName string
 param storageName string
 
 @description('Model name for deployment')
-param modelName string 
+param modelName string
 
 @description('Model format for deployment')
-param modelFormat string 
+param modelFormat string
 
 @description('Model version for deployment')
-param modelVersion string 
+param modelVersion string
 
 @description('Model deployment SKU name')
-param modelSkuName string 
+param modelSkuName string
 
 @description('Model deployment capacity')
-param modelCapacity int 
+param modelCapacity int
 
 @description('Model/AI Resource deployment location')
-param modelLocation string 
+param modelLocation string
 
 @description('The AI Service Account full ARM Resource ID. This is an optional field, and if not provided, the resource will be created.')
 param aiServiceAccountResourceId string
 
 @description('The AI Search Service full ARM Resource ID. This is an optional field, and if not provided, the resource will be created.')
-param aiSearchServiceResourceId string 
+param aiSearchServiceResourceId string
 
 @description('The AI Storage Account full ARM Resource ID. This is an optional field, and if not provided, the resource will be created.')
-param aiStorageAccountResourceId string 
+param aiStorageAccountResourceId string
 
 var aiServiceExists = aiServiceAccountResourceId != ''
 var acsExists = aiSearchServiceResourceId != ''
@@ -74,7 +74,6 @@ resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' = {
   }
 }
 
-
 var aiServiceParts = split(aiServiceAccountResourceId, '/')
 
 resource existingAIServiceAccount 'Microsoft.CognitiveServices/accounts@2023-05-01' existing = if (aiServiceExists) {
@@ -82,7 +81,7 @@ resource existingAIServiceAccount 'Microsoft.CognitiveServices/accounts@2023-05-
   scope: resourceGroup(aiServiceParts[2], aiServiceParts[4])
 }
 
-resource aiServices 'Microsoft.CognitiveServices/accounts@2024-06-01-preview' = if(!aiServiceExists) {
+resource aiServices 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' = if (!aiServiceExists) {
   name: aiServicesName
   location: modelLocation
   sku: {
@@ -93,22 +92,21 @@ resource aiServices 'Microsoft.CognitiveServices/accounts@2024-06-01-preview' = 
     type: 'SystemAssigned'
   }
   properties: {
+    allowProjectManagement: true
     customSubDomainName: toLower('${(aiServicesName)}')
-    apiProperties: {
-      
-    }
+    disableLocalAuth: false
     publicNetworkAccess: 'Enabled'
   }
 }
-resource modelDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-06-01-preview'= if(!aiServiceExists){
+resource modelDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-06-01-preview' = if (!aiServiceExists) {
   parent: aiServices
   name: modelName
-  sku : {
+  sku: {
     capacity: modelCapacity
     name: modelSkuName
   }
   properties: {
-    model:{
+    model: {
       name: modelName
       format: modelFormat
       version: modelVersion
@@ -122,7 +120,7 @@ resource existingSearchService 'Microsoft.Search/searchServices@2023-11-01' exis
   name: acsParts[8]
   scope: resourceGroup(acsParts[2], acsParts[4])
 }
-resource aiSearch 'Microsoft.Search/searchServices@2024-06-01-preview' = if(!acsExists) {
+resource aiSearch 'Microsoft.Search/searchServices@2024-06-01-preview' = if (!acsExists) {
   name: aiSearchName
   location: location
   tags: tags
@@ -131,7 +129,7 @@ resource aiSearch 'Microsoft.Search/searchServices@2024-06-01-preview' = if(!acs
   }
   properties: {
     disableLocalAuth: false
-    authOptions: { aadOrApiKey: { aadAuthFailureMode: 'http401WithBearerChallenge'}}
+    authOptions: { aadOrApiKey: { aadAuthFailureMode: 'http401WithBearerChallenge' } }
     encryptionWithCmk: {
       enforcement: 'Unspecified'
     }
@@ -155,7 +153,7 @@ resource existingAIStorageAccount 'Microsoft.Storage/storageAccounts@2023-05-01'
 
 param sku string = 'Standard_LRS'
 
-resource storage 'Microsoft.Storage/storageAccounts@2022-05-01' = if(!aiStorageExists) {
+resource storage 'Microsoft.Storage/storageAccounts@2022-05-01' = if (!aiStorageExists) {
   name: storageName
   location: location
   kind: 'StorageV2'
@@ -175,19 +173,21 @@ resource storage 'Microsoft.Storage/storageAccounts@2022-05-01' = if(!aiStorageE
   }
 }
 
-output aiServicesName string =  aiServiceExists ? existingAIServiceAccount.name : aiServicesName
+output aiServicesName string = aiServiceExists ? existingAIServiceAccount.name : aiServicesName
 output aiservicesID string = aiServiceExists ? existingAIServiceAccount.id : aiServices.id
-output aiservicesTarget string = aiServiceExists ? existingAIServiceAccount.properties.endpoint : aiServices.properties.endpoint
+output aiservicesTarget string = aiServiceExists
+  ? existingAIServiceAccount.properties.endpoint
+  : aiServices.properties.endpoint
 output aiServiceAccountResourceGroupName string = aiServiceExists ? aiServiceParts[4] : resourceGroup().name
-output aiServiceAccountSubscriptionId string = aiServiceExists ? aiServiceParts[2] : subscription().subscriptionId 
+output aiServiceAccountSubscriptionId string = aiServiceExists ? aiServiceParts[2] : subscription().subscriptionId
 
 output aiSearchName string = acsExists ? existingSearchService.name : aiSearch.name
 output aisearchID string = acsExists ? existingSearchService.id : aiSearch.id
 output aiSearchServiceResourceGroupName string = acsExists ? acsParts[4] : resourceGroup().name
 output aiSearchServiceSubscriptionId string = acsExists ? acsParts[2] : subscription().subscriptionId
 
-output storageAccountName string = aiStorageExists ? existingAIStorageAccount.name :  storage.name
-output storageId string =  aiStorageExists ? existingAIStorageAccount.id :  storage.id
+output storageAccountName string = aiStorageExists ? existingAIStorageAccount.name : storage.name
+output storageId string = aiStorageExists ? existingAIStorageAccount.id : storage.id
 output storageAccountResourceGroupName string = aiStorageExists ? aiStorageParts[4] : resourceGroup().name
 output storageAccountSubscriptionId string = aiStorageExists ? aiStorageParts[2] : subscription().subscriptionId
 
