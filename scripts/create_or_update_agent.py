@@ -19,6 +19,7 @@ dotenv.load_dotenv(env_path)
 @click.argument("agent_config_file", type=click.Path(exists=True))
 @click.argument("project_connection_string", envvar="PROJECT_CONNECTION_STRING")
 def deploy_agent(agent_config_file, project_connection_string):
+    print(project_connection_string)
     # Load the json agent config and replace any references with environment variables
     with open(agent_config_file, "r") as f:
         config_str = f.read()
@@ -31,20 +32,21 @@ def deploy_agent(agent_config_file, project_connection_string):
 
         print(config)
 
-    project_client = AIProjectClient.from_connection_string(
+    project_client = AIProjectClient(
+        endpoint=project_connection_string,
         credential=DefaultAzureCredential(),
-        conn_str=project_connection_string,
     )
 
     # Check if agent already exists
-    agents = project_client.agents.list_agents()
+    agents = list(project_client.agents.list_agents())
+    print(agents)
 
-    if config.get("name") in [agent.name for agent in agents.data]:
+    if config.get("name") in [agent.name for agent in agents]:
         print(
             f"Agent {config.get('name')} already exists. Updating existing agent with new config."
         )
         agent_id = next(
-            agent.id for agent in agents.data if agent.name == config.get("name")
+            agent.id for agent in agents if agent.name == config.get("name")
         )
         agent = project_client.agents.update_agent(
             agent_id=agent_id,
