@@ -1,11 +1,16 @@
-import azure.functions as func
 import json
 import logging
 import os
 import time
+
+import azure.functions as func
 from azure.ai.projects import AIProjectClient
 from azure.identity import DefaultAzureCredential
-from azure.storage.queue import QueueClient, BinaryBase64EncodePolicy, BinaryBase64DecodePolicy
+from azure.storage.queue import (
+    BinaryBase64DecodePolicy,
+    BinaryBase64EncodePolicy,
+    QueueClient,
+)
 
 app = func.FunctionApp()
 
@@ -14,12 +19,13 @@ app = func.FunctionApp()
 input_queue_name = "input"
 output_queue_name = "output"
 
+
 # Function to initialize the agent client and the tools Azure Functions that the agent can use
 def initialize_client():
     # Create a project client using the connection string from local.settings.json
     project_client = AIProjectClient.from_connection_string(
         credential=DefaultAzureCredential(),
-        conn_str=os.environ["PROJECT_CONNECTION_STRING"]
+        conn_str=os.environ["PROJECT_CONNECTION_STRING"],
     )
 
     # Get the connection string from local.settings.json
@@ -41,26 +47,29 @@ def initialize_client():
                         "parameters": {
                             "type": "object",
                             "properties": {
-                                "location": {"type": "string", "description": "The location to look up."}
+                                "location": {
+                                    "type": "string",
+                                    "description": "The location to look up.",
+                                }
                             },
-                            "required": ["location"]
-                        }
+                            "required": ["location"],
+                        },
                     },
                     "input_binding": {
                         "type": "storage_queue",
                         "storage_queue": {
                             "queue_service_uri": storage_connection_string,
-                            "queue_name": input_queue_name
-                        }
+                            "queue_name": input_queue_name,
+                        },
                     },
                     "output_binding": {
                         "type": "storage_queue",
                         "storage_queue": {
                             "queue_service_uri": storage_connection_string,
-                            "queue_name": output_queue_name
-                        }
-                    }
-                }
+                            "queue_name": output_queue_name,
+                        },
+                    },
+                },
             }
         ],
     )
@@ -72,13 +81,14 @@ def initialize_client():
 
     return project_client, thread, agent
 
+
 @app.route(route="prompt", auth_level=func.AuthLevel.FUNCTION)
 def prompt(req: func.HttpRequest) -> func.HttpResponse:
-    logging.info('Python HTTP trigger function processed a request.')
+    logging.info("Python HTTP trigger function processed a request.")
 
     # Get the prompt from the request body
     req_body = req.get_json()
-    prompt = req_body.get('Prompt')
+    prompt = req_body.get("Prompt")
 
     # Initialize the agent client
     project_client, thread, agent = initialize_client()
@@ -106,7 +116,6 @@ def prompt(req: func.HttpRequest) -> func.HttpResponse:
     if run.status == "failed":
         logging.error(f"Run failed: {run.last_error}")
 
-
     messages = project_client.agents.list_messages(thread_id=thread.id)
     logging.info(f"Messages: {messages}")
 
@@ -117,29 +126,40 @@ def prompt(req: func.HttpRequest) -> func.HttpResponse:
             last_msg = data_point.content[-1]
             logging.info(f"Last Message: {last_msg.text.value}")
             break
- 
+
     # Delete the agent once done
-    project_client.agents.delete_agent(agent.id)
-    print("Deleted agent")
+    # project_client.agents.delete_agent(agent.id)
+    # print("Deleted agent")
 
     return func.HttpResponse(last_msg.text.value)
 
+
 # Function to get the weather
 @app.function_name(name="GetWeather")
-@app.queue_output(arg_name="outputQueueItem",  queue_name=output_queue_name, connection="STORAGE_CONNECTION")
-@app.queue_trigger(arg_name="msg", queue_name=input_queue_name, connection="STORAGE_CONNECTION") 
-def process_queue_message(msg: func.QueueMessage,  outputQueueItem: func.Out[str]) -> None:
-    logging.info('Python queue trigger function processed a queue item')
+@app.queue_output(
+    arg_name="outputQueueItem",
+    queue_name=output_queue_name,
+    connection="STORAGE_CONNECTION",
+)
+@app.queue_trigger(
+    arg_name="msg", queue_name=input_queue_name, connection="STORAGE_CONNECTION"
+)
+def process_queue_message(
+    msg: func.QueueMessage, outputQueueItem: func.Out[str]
+) -> None:
+    logging.info("Python queue trigger function processed a queue item")
 
-    messagepayload = json.loads(msg.get_body().decode('utf-8'))
-    location = messagepayload['location']
-    correlation_id = messagepayload['CorrelationId']
+    messagepayload = json.loads(msg.get_body().decode("utf-8"))
+    location = messagepayload["location"]
+    correlation_id = messagepayload["CorrelationId"]
 
     # Send message to queue. Sends a mock message for the weather
     result_message = {
-        'Value': 'Weather is 74 degrees and sunny in ' + location,
-        'CorrelationId': correlation_id
+        "Value": "Weather is 74 degrees and sunny in " + location,
+        "CorrelationId": correlation_id,
     }
-    outputQueueItem.set(json.dumps(result_message).encode('utf-8'))
+    outputQueueItem.set(json.dumps(result_message).encode("utf-8"))
 
-    logging.info(f"Sent message to queue: {input_queue_name} with message {result_message}")
+    logging.info(
+        f"Sent message to queue: {input_queue_name} with message {result_message}"
+    )
