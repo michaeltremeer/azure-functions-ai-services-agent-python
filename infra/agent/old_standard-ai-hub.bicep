@@ -28,7 +28,6 @@ param aiServicesTarget string
 @description('Name AI Services resource')
 param aiServicesName string
 
-
 @description('Name AI Search resource')
 param aiSearchName string
 @description('Resource ID of the AI Search resource')
@@ -38,8 +37,7 @@ param capabilityHostName string = 'caphost1'
 
 var acsConnectionName = '${aiHubName}-connection-AISearch'
 
-var aoaiConnection  = '${aiHubName}-connection-AIServices_aoai'
-
+var aoaiConnection = '${aiHubName}-connection-AIServices_aoai'
 
 resource aiServices 'Microsoft.CognitiveServices/accounts@2023-05-01' existing = {
   name: aiServicesName
@@ -74,8 +72,11 @@ resource aiHub 'Microsoft.MachineLearningServices/workspaces@2024-07-01-preview'
     properties: {
       category: 'AIServices'
       target: aiServicesTarget
-      authType: 'AAD'
+      authType: 'ApiKey'
       isSharedToAll: true
+      credentials: {
+        key: '${listKeys(aiServicesId, '2022-10-01').key1}'
+      }
       metadata: {
         ApiType: 'Azure'
         ResourceId: aiServicesId
@@ -106,7 +107,6 @@ resource aiHub 'Microsoft.MachineLearningServices/workspaces@2024-07-01-preview'
       capabilityHostKind: 'Agents'
     }
   }
-  
 }
 
 output aiHubID string = aiHub.id

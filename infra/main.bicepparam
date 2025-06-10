@@ -8,4 +8,6 @@ param aiHubName = 'hub-${environmentName}'
 param aiProjectName = 'project-${environmentName}'
 param skipVnet = true
 
+param aiSearchSku = 'free'
+
 param principalId = '168a046a-c7e5-43fa-9c57-e26f27377ca5'

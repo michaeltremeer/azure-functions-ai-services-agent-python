@@ -15,6 +15,9 @@ param keyvaultName string
 @description('The name of the AI Search resource')
 param aiSearchName string
 
+@description('The SKU of the new AI Search resource, if a new resource is to be created')
+param aiSearchSku string = 'standard'
+
 @description('Name of the storage account')
 param storageName string
 
@@ -140,7 +143,7 @@ resource aiSearch 'Microsoft.Search/searchServices@2024-06-01-preview' = if (!ac
     semanticSearch: 'disabled'
   }
   sku: {
-    name: 'standard'
+    name: aiSearchSku
   }
 }
 

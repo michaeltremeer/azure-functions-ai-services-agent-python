@@ -3,6 +3,6 @@
 # Manually managing azure-functions-worker may cause unexpected issues
 
 azure-functions
-azure-ai-projects
+azure-ai-projects>=1.0.0b11
 azure-storage-queue
 azure-identity

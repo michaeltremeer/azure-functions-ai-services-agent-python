@@ -49,12 +49,6 @@ param principalId string = ''
 @description('Name for the AI resource and used to derive name of dependent resources.')
 param aiHubName string = 'hub-demo'
 
-@description('Friendly name for your Hub resource')
-param aiHubFriendlyName string = 'Agents Hub resource'
-
-@description('Description of your Azure AI resource displayed in AI studio')
-param aiHubDescription string = 'This is an example AI resource for use in Azure AI Studio.'
-
 @description('Name for the AI project resources.')
 param aiProjectName string = 'project-demo'
 
@@ -67,8 +61,8 @@ param aiProjectDescription string = 'This is an example AI Project resource for 
 @description('Name of the Azure AI Search account')
 param aiSearchName string = 'agentaisearch'
 
-@description('Name for capabilityHost.')
-param capabilityHostName string = 'caphost1'
+@description('The SKU of the new AI Search resource, if a new resource is to be created')
+param aiSearchSku string = 'free'
 
 @description('Name of the Azure AI Services account')
 param aiServicesName string = 'agentaiservices'
@@ -106,7 +100,7 @@ var resourceToken = take(toLower(uniqueString(subscription().id, resourceGroup()
 var functionAppName = !empty(apiServiceName) ? apiServiceName : '${abbrs.webSitesFunctions}api-${resourceToken}'
 var deploymentStorageContainerName = 'app-package-${take(functionAppName, 32)}-${take(toLower(uniqueString(functionAppName, resourceToken)), 7)}'
 var name = toLower('${aiHubName}')
-var aiHubToken = '${name}${uniqueSuffix}'
+var aiServicesToken = '${aiServicesName}${uniqueSuffix}'
 var projectName = toLower('${aiProjectName}')
 var aiProjectToken = '${projectName}${uniqueSuffix}'
 
@@ -186,8 +180,9 @@ module aiDependencies './agent/standard-dependent-resources.bicep' = {
     location: location
     storageName: 'st${uniqueSuffix}'
     keyvaultName: 'kv${name}${uniqueSuffix}'
-    aiServicesName: '${aiServicesName}${uniqueSuffix}'
+    aiServicesName: aiServicesToken
     aiSearchName: '${aiSearchName}${uniqueSuffix}'
+    aiSearchSku: aiSearchSku
     tags: tags
 
     // Model deployment parameters
@@ -210,52 +205,12 @@ module aiProject './agent/ai-foundry-project.bicep' = {
     // workspace organization
     aiFoundryName: aiDependencies.outputs.aiServicesName
     aiProjectName: aiProjectToken
+    aiProjectFriendlyName: aiProjectFriendlyName
+    aiProjectDescription: aiProjectDescription
     location: location
     tags: tags
   }
 }
-
-// module aiHub './agent/standard-ai-hub.bicep' = {
-//   name: '${name}${uniqueSuffix}deployment'
-//   params: {
-//     // workspace organization
-//     aiHubName: aiHubToken
-//     aiHubFriendlyName: aiHubFriendlyName
-//     aiHubDescription: aiHubDescription
-//     location: location
-//     tags: tags
-//     capabilityHostName: '${aiHubToken}${capabilityHostName}'
-
-//     aiSearchName: aiDependencies.outputs.aiSearchName
-//     aiSearchId: aiDependencies.outputs.aisearchID
-
-//     aiServicesName: aiDependencies.outputs.aiServicesName
-//     aiServicesId: aiDependencies.outputs.aiservicesID
-//     aiServicesTarget: aiDependencies.outputs.aiservicesTarget
-
-//     keyVaultId: aiDependencies.outputs.keyvaultId
-//     storageAccountId: aiDependencies.outputs.storageId
-//   }
-// }
-
-// module aiProject './agent/standard-ai-project.bicep' = {
-//   name: '${projectName}${uniqueSuffix}deployment'
-//   params: {
-//     // workspace organization
-//     aiProjectName: aiProjectToken
-//     aiProjectFriendlyName: aiProjectFriendlyName
-//     aiProjectDescription: aiProjectDescription
-//     location: location
-//     tags: tags
-
-//     // dependent resources
-//     capabilityHostName: '${projectName}${uniqueSuffix}${capabilityHostName}'
-
-//     aiHubId: aiHub.outputs.aiHubID
-//     acsConnectionName: aiHub.outputs.acsConnectionName
-//     aoaiConnectionName: aiHub.outputs.aoaiConnectionName
-//   }
-// }
 
 module aiServiceRoleAssignments './agent/ai-service-role-assignments.bicep' = {
   name: 'aiserviceroleassignments${projectName}${uniqueSuffix}deployment'
@@ -405,8 +360,7 @@ output SERVICE_API_NAME string = api.outputs.SERVICE_API_NAME
 output SERVICE_API_URI string = api.outputs.SERVICE_API_URI
 output AZURE_FUNCTION_APP_NAME string = api.outputs.SERVICE_API_NAME
 output RESOURCE_GROUP string = resourceGroupName
-output AI_HUB_NAME string = aiHubToken
 output AI_PROJECT_NAME string = aiProjectToken
-output PROJECT_ENDPOINT string = 'https://${aiHubToken}.services.ai.azure.com/api/projects/${aiProjectToken}'
+output PROJECT_ENDPOINT string = aiProject.outputs.aiProjectEndpoint
 output PROJECT_CONNECTION_STRING string = aiProject.outputs.projectConnectionString
 output STORAGE_CONNECTION__queueServiceUri string = 'https://${storage.outputs.name}.queue.${environment().suffixes.storage}'
